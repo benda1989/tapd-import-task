@@ -11,6 +11,8 @@ from urllib.parse import urlencode
 os.chdir(os.path.dirname(os.path.realpath(sys.argv[0])))
 re = json.load(open("conf.json"))
 USER = re["user"]
+STORY = re["story"]
+PROJECT = re["project"]
 COOKIE = re["cookie"]
 ON = re["on"]
 OFF = re["off"]
@@ -39,14 +41,32 @@ def calWork(now, day):
 
 
 class tapdTask():
-    headers = {
-        "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-        "user-agent":  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36"}
+    headers = {"user-agent":  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36"}
     datas = []
+    allTaskUrl = "https://www.tapd.cn/api/entity/tasks/task_list_by_condition"
+    workId = ""
+    oldData = []
 
     def __init__(self, story, cookie) -> None:
-        self.url = "https://www.tapd.cn/36802417/prong/tasks/quick_add_task/%s?is_from_story_view=true" % story
+        self.story = story
         self.headers["cookie"] = cookie
+        for i in cookie.split(";"):
+            if "cloud_current_workspaceId" in i:
+                self.workId = i.split("=")[1]
+        self.taskUrl = "https://www.tapd.cn/%s/prong/tasks/quick_add_task/%s?is_from_story_view=true" % (self.workId, story)
+        self.doneUrl = "https://www.tapd.cn/%s/prong/tasks/changeStatus?new_status=done&objid=" % self.workId
+        self.load()
+
+    def load(self):
+        try:
+            with open(self.story+".json", 'r') as f:
+                self.oldData = json.load(f)
+        except FileNotFoundError:
+            pass
+
+    def save(self):
+        with open(self.story+".json", 'w') as f:
+            json.dump(self.oldData, f, indent=4)
 
     def read(self, fp, sheet, project, user, startDay):
         book = openpyxl.load_workbook(fp)
@@ -138,8 +158,32 @@ class tapdTask():
             "data[Task][begin]": d[3],
             "data[Task][due]": d[4]
         }
-        response = requests.post(self.url, data=urlencode(data), headers=self.headers)
+        response = requests.post(self.taskUrl, data=urlencode(data), headers={**self.headers,  "content-type": "application/x-www-form-urlencoded; charset=UTF-8"})
         if response.status_code != 200:
             print("添加失败:", response.text)
             return response.text
         return "完成"
+
+    def taskIds(self):
+        query = {"workspace_ids": [self.workId], "page_count": 1, "story_id": self.story, "from": "story_relate_task"}
+        response = requests.post(self.allTaskUrl, json=query, headers=self.headers)
+        if response.status_code != 200:
+            print("查询失败:", response.text)
+            return {}
+        re = {i["title"]: i["id"] for i in response.json()["data"]["list_excludes"]["checked_list_with_name"]}
+        if len(self.oldData) > 0:
+            old = self.oldData.copy()
+            for k, v in re.items():
+                if v in old:
+                    re[k] = "完成"
+                    old.remove(v)
+                    if len(old) == 0:
+                        break
+        return re
+
+    def done(self, id):
+        if id and id != "完成":
+            if requests.get(self.doneUrl + id, headers=self.headers).status_code == 200:
+                self.oldData.append(id)
+                return "完成"
+        return "失败"

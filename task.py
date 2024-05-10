@@ -1,9 +1,9 @@
 import sys
 import os
 import openpyxl
-from PySide6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QPushButton, QFileDialog, QTableWidgetItem, QLineEdit, QDateEdit, QTableWidget, QComboBox, QHBoxLayout
-from PySide6.QtCore import QDate, QTimer
-from tapd import tapdTask, USER, COOKIE
+from PySide6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QPushButton, QFileDialog, QTableWidgetItem, QLineEdit, QDateEdit, QTableWidget, QComboBox, QHBoxLayout, QMenu
+from PySide6.QtCore import QDate, QTimer, Qt
+from tapd import tapdTask, USER, COOKIE, STORY, PROJECT
 
 
 class MainWindow(QWidget):
@@ -19,13 +19,14 @@ class MainWindow(QWidget):
         self.data_show = QTableWidget()
         self.data_show.setMinimumWidth(720)
         self.data_show.setColumnCount(6)
-        for i, j in enumerate(["名称", "花费", "负责人", "开始", "结束", "状态"]):
+        for i, j in enumerate(["名称", "花费", "负责人", "开始", "结束", "状态/tid"]):
             self.data_show.setHorizontalHeaderItem(i, QTableWidgetItem(j))
         self.data_show.setColumnWidth(0, 300)
         self.data_show.setColumnWidth(1, 30)
         self.data_show.setColumnWidth(2, 70)
+        self.data_show.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.data_show.customContextMenuRequested.connect(self.Menu)
         left_layout.addWidget(self.data_show)
-
         # 右侧布局
         right_layout = QVBoxLayout()
         #
@@ -44,14 +45,14 @@ class MainWindow(QWidget):
         right_layout.addLayout(cookie_layout)
         #
         self.story_input = QLineEdit()
-        self.story_input.setText("1136802417001004298")
+        self.story_input.setText(STORY)
         story_layout = QHBoxLayout()
         story_layout.addWidget(QLabel('需求id'))
         story_layout.addWidget(self.story_input)
         right_layout.addLayout(story_layout)
         #
         self.project_input = QLineEdit()
-        self.project_input.setText("项目名称")
+        self.project_input.setText(PROJECT)
         project_layout = QHBoxLayout()
         project_layout.addWidget(QLabel('项目名称'))
         project_layout.addWidget(self.project_input)
@@ -71,14 +72,16 @@ class MainWindow(QWidget):
         # sheet
         self.combo = QComboBox(self)
         self.combo.currentTextChanged.connect(lambda x: setattr(self, "sheet", x))
-        right_layout.addWidget(self.combo)
-        # 开始
         self.read_button = QPushButton('读取')
         self.read_button.clicked.connect(self.read)
+        sheet_layout = QHBoxLayout()
+        sheet_layout.addWidget(self.combo)
+        sheet_layout.addWidget(self.read_button)
+        right_layout.addLayout(sheet_layout)
+        # 开始
         self.start_button = QPushButton('上传')
         self.start_button.clicked.connect(self.start)
         action_layout = QHBoxLayout()
-        action_layout.addWidget(self.read_button)
         action_layout.addWidget(self.start_button)
         right_layout.addLayout(action_layout)
 
@@ -101,7 +104,7 @@ class MainWindow(QWidget):
         self.combo.addItems(ws.sheetnames)
 
     def read(self):
-        self.tapd = tapdTask(self.story_input.text, self.cookie_input.text())
+        self.tapd = tapdTask(self.story_input.text(), self.cookie_input.text())
         self.tapd.read(
             self.eFile,
             self.sheet,
@@ -110,9 +113,12 @@ class MainWindow(QWidget):
             self.date_edit.text(),
         )
         self.data_show.setRowCount(len(self.tapd.datas))
+        taskIds = self.tapd.taskIds()
         for i, row in enumerate(self.tapd.datas):
             for j, cel in enumerate(row):
                 self.data_show.setItem(i, j, QTableWidgetItem(str(cel)))
+                if j == 0 and cel in taskIds:
+                    self.data_show.setItem(i, 5, QTableWidgetItem(taskIds[cel]))
         self.dataIndex = 0
         self.start_button.setText("上传")
 
@@ -129,6 +135,17 @@ class MainWindow(QWidget):
             res = self.tapd.createOne(self.tapd.datas[self.dataIndex])
             self.data_show.setItem(self.dataIndex, 5, QTableWidgetItem(res))
             self.dataIndex += 1
+
+    def Menu(self, pos):
+        menu = QMenu()
+        item1 = menu.addAction(u'完成')
+        action = menu.exec(self.data_show.mapToGlobal(pos))
+        if action == item1:
+            for i in self.data_show.selectedIndexes():
+                if i.column() == 5:
+                    res = self.tapd.done(i.data())
+                    self.data_show.setItem(i.row(), 5, QTableWidgetItem(res))
+            self.tapd.save()
 
 
 if __name__ == "__main__":
