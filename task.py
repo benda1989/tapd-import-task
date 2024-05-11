@@ -1,7 +1,7 @@
 import sys
 import os
 import openpyxl
-from PySide6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QPushButton, QFileDialog, QTableWidgetItem, QLineEdit, QDateEdit, QTableWidget, QComboBox, QHBoxLayout, QMenu
+from PySide6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QPushButton, QFileDialog, QTableWidgetItem, QLineEdit, QDateEdit, QTableWidget, QComboBox, QHBoxLayout, QMenu, QMessageBox
 from PySide6.QtCore import QDate, QTimer, Qt
 from tapd import tapdTask, USER, COOKIE, STORY, PROJECT
 
@@ -119,6 +119,8 @@ class MainWindow(QWidget):
                 self.data_show.setItem(i, j, QTableWidgetItem(str(cel)))
                 if j == 0 and cel in taskIds:
                     self.data_show.setItem(i, 5, QTableWidgetItem(taskIds[cel]))
+        if len(taskIds) == 0:
+            QMessageBox.information(self, "提醒", "没有发现历史任务，检查cookie/story是否正常？", QMessageBox.Ok | QMessageBox.Cancel)
         self.dataIndex = 0
         self.start_button.setText("上传")
 
