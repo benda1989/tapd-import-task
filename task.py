@@ -118,10 +118,10 @@ class MainWindow(QWidget):
         for i, row in enumerate(self.tapd.datas):
             for j, cel in enumerate(row):
                 self.data_show.setItem(i, j, QTableWidgetItem(str(cel)))
-                if j == 0 and cel in taskIds:
+                if j == 0 and taskIds and cel in taskIds:
                     self.data_show.setItem(i, 5, QTableWidgetItem(taskIds[cel]))
-        if len(taskIds) == 0:
-            QMessageBox.information(self, "提醒", "没有发现历史任务，检查cookie/story是否正常？", QMessageBox.Ok | QMessageBox.Cancel)
+        if taskIds is None:
+            QMessageBox.information(self, "提醒", "查询历史任务失败，请检查cookie/story是否正常？", QMessageBox.Ok)
         self.dataIndex = 0
         self.start_button.setText("上传")
 

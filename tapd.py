@@ -169,17 +169,20 @@ class tapdTask():
         response = requests.post(self.allTaskUrl, json=query, headers=self.headers)
         if response.status_code != 200:
             print("查询失败:", response.text)
-            return {}
-        re = {i["title"]: i["id"] for i in response.json()["data"]["list_excludes"]["checked_list_with_name"]}
-        if len(self.oldData) > 0:
-            old = self.oldData.copy()
-            for k, v in re.items():
-                if v in old:
-                    re[k] = "完成"
-                    old.remove(v)
-                    if len(old) == 0:
-                        break
-        return re
+            return None
+        try:
+            re = {i["title"]: i["id"] for i in response.json()["data"]["list_excludes"]["checked_list_with_name"]}
+            if len(self.oldData) > 0:
+                old = self.oldData.copy()
+                for k, v in re.items():
+                    if v in old:
+                        re[k] = "完成"
+                        old.remove(v)
+                        if len(old) == 0:
+                            break
+            return re
+        except:
+            return None
 
     def done(self, id):
         if id and id != "完成":
