@@ -99,9 +99,10 @@ class MainWindow(QWidget):
 
     def choose_file(self):
         self.eFile, _ = QFileDialog.getOpenFileName(self, '选择', '', 'Excel files (*.xlsx)')
-        self.eFile_button.setText(os.path.basename(self.eFile))
-        ws = openpyxl.load_workbook(self.eFile)
-        self.combo.addItems(ws.sheetnames)
+        if self.eFile:
+            self.eFile_button.setText(os.path.basename(self.eFile))
+            ws = openpyxl.load_workbook(self.eFile)
+            self.combo.addItems(ws.sheetnames)
 
     def read(self):
         self.tapd = tapdTask(self.story_input.text(), self.cookie_input.text())
@@ -134,6 +135,10 @@ class MainWindow(QWidget):
 
     def sender(self):
         if len(self.tapd.datas) > self.dataIndex:
+            item = self.data_show.item(self.dataIndex, 5)
+            if item and item.text() == "完成":
+                self.dataIndex += 1
+                return
             res = self.tapd.createOne(self.tapd.datas[self.dataIndex])
             self.data_show.setItem(self.dataIndex, 5, QTableWidgetItem(res))
             self.dataIndex += 1
